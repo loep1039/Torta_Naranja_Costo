@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculadora Naranja - Acceso Privado</title>
+    <title>Calculadora Naranja - Control de Producción</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #fefaf6; -webkit-tap-highlight-color: transparent; }
@@ -30,27 +30,20 @@
 
         <div class="bg-white rounded-b-xl card-shadow border border-orange-50 p-3">
             
-            <div id="settings-panel" class="hidden bg-gray-50 p-4 rounded-xl border-2 border-dashed border-orange-200 mb-4 animate-pulse-once">
+            <div id="settings-panel" class="hidden bg-gray-50 p-4 rounded-xl border-2 border-dashed border-orange-200 mb-4">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xs font-black text-gray-500 uppercase">Panel Administrativo</h3>
-                    <button onclick="cerrarAjustes()" class="text-red-500 text-xs font-bold">CERRAR</button>
+                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Precios por Gramo ($)</h3>
+                    <button onclick="cerrarAjustes()" class="text-red-500 text-[10px] font-bold uppercase">Cerrar</button>
                 </div>
 
-                <div class="mb-4 p-2 bg-white rounded-lg border border-gray-100">
-                    <label class="text-[9px] font-bold text-gray-400 uppercase block mb-1">Cambiar Clave de Acceso</label>
-                    <div class="flex gap-2">
-                        <input type="password" id="new-password" placeholder="Nueva clave" class="flex-1 bg-gray-50 p-2 rounded text-xs outline-none border border-gray-200">
-                        <button onclick="updatePassword()" class="bg-gray-800 text-white px-3 py-1 rounded text-[10px] font-bold">ACTUALIZAR</button>
+                <div id="prices-editor" class="grid grid-cols-1 gap-2 mb-4">
                     </div>
-                </div>
-
-                <div id="prices-editor" class="grid grid-cols-1 gap-2 mb-4"></div>
-                <button onclick="savePrices()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg text-xs shadow-md">GUARDAR PRECIOS</button>
+                <button onclick="savePrices()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg text-xs shadow-md">GUARDAR CAMBIOS EN PRECIOS</button>
             </div>
 
             <div class="flex p-1 bg-gray-100 rounded-lg mb-4 text-[11px]">
                 <button onclick="setShape('cuadrado')" id="btn-cuadrado" class="flex-1 py-2 font-bold rounded-md transition-all bg-white shadow text-orange-600 uppercase">Cuadrada</button>
-                <button onclick="setShape('redondo')" id="btn-redondo" class="flex-1 py-2 font-bold rounded-md transition-all text-gray-500 uppercase text-center">Redonda</button>
+                <button onclick="setShape('redondo')" id="btn-redondo" class="flex-1 py-2 font-bold rounded-md transition-all text-gray-500 uppercase text-center uppercase">Redonda</button>
             </div>
 
             <section class="bg-orange-50/50 p-3 rounded-lg border border-orange-100 mb-4">
@@ -67,19 +60,19 @@
                 </thead>
                 <tbody id="tabla-body" class="divide-y divide-gray-50 text-[13px]"></tbody>
                 <tfoot class="border-t-2 border-orange-100">
-                    <tr class="bg-gray-50">
-                        <td class="px-2 py-2 font-bold text-[10px] uppercase text-gray-500">Masa Total</td>
+                    <tr class="bg-gray-50 text-gray-600">
+                        <td class="px-2 py-2 font-bold text-[10px] uppercase">Peso Total Masa</td>
                         <td id="total-gramos" colspan="2" class="px-2 py-2 text-right font-black text-lg italic text-gray-800">0 g</td>
                     </tr>
                     <tr class="bg-orange-600 text-white">
-                        <td class="px-2 py-3 font-bold text-[11px] rounded-l-lg uppercase">Costo de Insumos</td>
+                        <td class="px-2 py-3 font-bold text-[11px] rounded-l-lg uppercase">Costo de Producción</td>
                         <td id="total-costo" colspan="2" class="px-2 py-3 text-right font-black text-xl rounded-r-lg">$0.00</td>
                     </tr>
                 </tfoot>
             </table>
 
             <button onclick="copyToClipboard()" class="mt-4 w-full bg-gray-800 text-white font-bold py-3 rounded-lg text-xs shadow-md active:scale-95 transition-all">
-                COPIAR PARA WHATSAPP
+                COPIAR RECETA Y COSTO
             </button>
         </div>
     </div>
@@ -87,6 +80,12 @@
     <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/90 text-white px-6 py-2 rounded-full text-[10px] font-bold opacity-0 transition-opacity pointer-events-none z-50"></div>
 
     <script>
+        // ==========================================
+        // CONFIGURACIÓN DE SEGURIDAD (EDITA AQUÍ)
+        // ==========================================
+        const CLAVE_MAESTRA = "2026"; // Cambia este valor por tu clave deseada
+        // ==========================================
+
         let currentShape = 'cuadrado';
         const preciosBase = {
             "Harina": 0.00126, "Sal": 0.00040, "Azúcar": 0.00160, "Aceite": 0.00458,
@@ -95,22 +94,20 @@
         let preciosActuales = {};
 
         const recetaBase = [
-            { id: 1, nombre: "Harina", porcentaje: 100.0 }, { id: 2, nombre: "Jugo de Naranja", porcentaje: 39.2 },
-            { id: 3, nombre: "Azúcar", porcentaje: 95.7 }, { id: 4, nombre: "Polvo de Hornear", porcentaje: 3.4 },
-            { id: 5, nombre: "Aceite", porcentaje: 32.6 }, { id: 6, nombre: "Sal", porcentaje: 2.3 },
-            { id: 7, nombre: "Huevos", porcentaje: 71.9 }, { id: 8, nombre: "Vainilla", porcentaje: 3.0 }
+            { nombre: "Harina", porcentaje: 100.0 }, { nombre: "Jugo de Naranja", porcentaje: 39.2 },
+            { nombre: "Azúcar", porcentaje: 95.7 }, { nombre: "Polvo de Hornear", porcentaje: 3.4 },
+            { nombre: "Aceite", porcentaje: 32.6 }, { nombre: "Sal", porcentaje: 2.3 },
+            { nombre: "Huevos", porcentaje: 71.9 }, { nombre: "Vainilla", porcentaje: 3.0 }
         ];
 
-        // --- LÓGICA DE SEGURIDAD ---
+        // Función de Acceso
         function verificarAcceso() {
-            const claveGuardada = localStorage.getItem('app_password') || '1234';
-            const intento = prompt("Ingrese la clave de administrador:");
-            
-            if (intento === claveGuardada) {
+            const intento = prompt("Acceso Restringido. Ingrese clave:");
+            if (intento === CLAVE_MAESTRA) {
                 document.getElementById('settings-panel').classList.remove('hidden');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (intento !== null) {
-                alert("Clave incorrecta. Acceso denegado.");
+                alert("Clave incorrecta.");
             }
         }
 
@@ -118,18 +115,7 @@
             document.getElementById('settings-panel').classList.add('hidden');
         }
 
-        function updatePassword() {
-            const nueva = document.getElementById('new-password').value;
-            if (nueva.length < 4) {
-                alert("La clave debe tener al menos 4 caracteres.");
-                return;
-            }
-            localStorage.setItem('app_password', nueva);
-            document.getElementById('new-password').value = '';
-            showToast("CLAVE CAMBIADA CON ÉXITO");
-        }
-
-        // --- LÓGICA DE PRECIOS Y CÁLCULO ---
+        // Gestión de Precios
         function loadPrices() {
             const stored = localStorage.getItem('precios_naranja');
             preciosActuales = stored ? JSON.parse(stored) : {...preciosBase};
@@ -142,9 +128,9 @@
             for (const [nombre, precio] of Object.entries(preciosActuales)) {
                 container.innerHTML += `
                     <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-lg border border-gray-100">
-                        <span class="text-[10px] font-bold text-gray-600">${nombre}</span>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase">${nombre}</span>
                         <input type="number" step="0.000001" value="${precio}" data-ing="${nombre}" 
-                            class="price-input w-24 text-right text-xs font-mono bg-orange-50 p-1 rounded border border-orange-100 outline-none">
+                            class="price-input w-24 text-right text-xs font-mono bg-orange-50 p-1 rounded border border-orange-100 outline-none font-bold text-orange-800">
                     </div>`;
             }
         }
@@ -154,11 +140,12 @@
                 preciosActuales[input.getAttribute('data-ing')] = parseFloat(input.value);
             });
             localStorage.setItem('precios_naranja', JSON.stringify(preciosActuales));
-            showToast("PRECIOS ACTUALIZADOS");
+            showToast("DATOS GUARDADOS CORRECTAMENTE");
             cerrarAjustes();
             calcular();
         }
 
+        // Lógica de Dimensiones y Formas
         function setShape(shape) {
             currentShape = shape;
             document.getElementById('btn-cuadrado').className = shape === 'cuadrado' ? "flex-1 py-2 font-bold rounded-md bg-white shadow text-orange-600 uppercase" : "flex-1 py-2 font-bold rounded-md text-gray-500 uppercase text-center";
@@ -169,7 +156,7 @@
 
         function renderInputs() {
             const container = document.getElementById('inputs-container');
-            const style = "w-full bg-white p-2 rounded-lg border border-orange-200 outline-none text-sm font-bold shadow-sm";
+            const style = "w-full bg-white p-2 rounded-lg border border-orange-200 outline-none text-sm font-bold shadow-sm focus:border-orange-500";
             if (currentShape === 'cuadrado') {
                 container.innerHTML = `
                     <div class="col-span-2"><label class="text-[9px] font-bold text-orange-700 uppercase">Altura (cm)</label><input type="number" id="altura" value="2.5" step="0.1" oninput="calcular()" class="${style}"></div>
@@ -177,8 +164,8 @@
                     <div><label class="text-[9px] font-bold text-orange-700 uppercase">Largo</label><input type="number" id="largo" value="39" step="0.1" oninput="calcular()" class="${style}"></div>`;
             } else {
                 container.innerHTML = `
-                    <div><label class="text-[9px] font-bold text-orange-700 uppercase">Diámetro</label><input type="number" id="diametro" value="14.5" step="0.1" oninput="calcular()" class="${style}"></div>
-                    <div><label class="text-[9px] font-bold text-orange-700 uppercase">Altura</label><input type="number" id="altura" value="9.5" step="0.1" oninput="calcular()" class="${style}"></div>`;
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase">Diámetro (cm)</label><input type="number" id="diametro" value="14.5" step="0.1" oninput="calcular()" class="${style}"></div>
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase">Altura (cm)</label><input type="number" id="altura" value="9.5" step="0.1" oninput="calcular()" class="${style}"></div>`;
             }
         }
 
@@ -228,7 +215,7 @@
                 text += `${tr.cells[0].innerText}: ${tr.cells[1].innerText}\n`;
             });
             await navigator.clipboard.writeText(text);
-            showToast("LISTA COPIADA");
+            showToast("LISTA COPIADA AL PORTAPAPELES");
         }
 
         window.onload = () => { loadPrices(); renderInputs(); calcular(); };
