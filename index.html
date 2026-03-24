@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Torta de Naranja + Costos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #fefaf6; -webkit-tap-highlight-color: transparent; }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.1), 0 8px 10px -6px rgba(249, 115, 22, 0.1); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body class="p-2 md:p-6 font-sans text-gray-800">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-gradient-to-r from-orange-600 to-amber-500 rounded-t-2xl p-5 text-white shadow-lg text-center">
+            <h1 class="text-2xl font-extrabold uppercase tracking-tight">Torta de Naranja Pro</h1>
+            <p class="text-orange-100 text-[10px] font-medium tracking-widest uppercase">Gestión de Producción y Costos</p>
+        </div>
+
+        <div class="bg-white rounded-b-2xl card-shadow border border-orange-50 p-4 md:p-6">
+            
+            <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
+                <button onclick="setShape('cuadrado')" id="btn-cuadrado" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white shadow text-orange-600">CUADRADA</button>
+                <button onclick="setShape('redondo')" id="btn-redondo" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-gray-500 uppercase">REDONDA</button>
+            </div>
+
+            <section class="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-6">
+                <h3 id="label-dimensiones" class="text-orange-800 font-bold text-[10px] uppercase mb-3 tracking-wider">Dimensiones (cm)</h3>
+                <div id="inputs-container" class="grid grid-cols-2 gap-3">
+                    </div>
+            </section>
+
+            <div class="bg-white overflow-x-auto">
+                <table class="w-full min-w-[400px]">
+                    <thead>
+                        <tr class="text-gray-400 text-[9px] uppercase tracking-widest border-b border-gray-100">
+                            <th class="px-2 py-2 text-left font-bold w-8">#</th>
+                            <th class="px-2 py-2 text-left font-bold">Ingrediente</th>
+                            <th class="px-2 py-2 text-right font-bold">Peso (g)</th>
+                            <th class="px-2 py-2 text-right font-bold">Costo ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body" class="divide-y divide-gray-50">
+                        </tbody>
+                    <tfoot>
+                        <tr class="bg-gray-50 text-gray-600">
+                            <td colspan="2" class="px-4 py-2 font-bold text-[10px] uppercase">Total Peso Masa</td>
+                            <td id="total-gramos" class="px-4 py-2 text-right font-bold text-lg text-gray-800 italic">0 g</td>
+                            <td></td>
+                        </tr>
+                        <tr class="bg-orange-600 text-white">
+                            <td colspan="3" class="px-4 py-4 font-bold text-sm rounded-bl-xl uppercase tracking-tighter">Costo Total de Insumos</td>
+                            <td id="total-costo" class="px-4 py-4 text-right font-black text-2xl rounded-br-xl">$0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-3">
+                <button onclick="copyToClipboard()" class="w-full bg-gray-800 hover:bg-black active:scale-[0.98] text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-lg">
+                    COPIAR RECETA Y COSTOS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-8 py-3 rounded-full text-xs font-bold opacity-0 transition-opacity pointer-events-none z-50 shadow-2xl">
+        ¡DATOS COPIADOS!
+    </div>
+
+    <script>
+        let currentShape = 'cuadrado';
+        
+        // Base de datos de costos (Precios por gramo extraídos de tus imágenes)
+        const preciosPorGramo = {
+            "Harina": 0.00126,
+            "Sal": 0.00040,
+            "Azúcar": 0.00160,
+            "Aceite": 0.00458,
+            "Huevos": 0.004467,
+            "Polvo de Hornear": 0.01620,
+            "Jugo de Naranja": 0.00200,
+            "Vainilla": 0.00200
+        };
+
+        const recetaBase = [
+            { id: 1, nombre: "Harina", porcentaje: 100.0 },
+            { id: 2, nombre: "Jugo de Naranja", porcentaje: 39.2 },
+            { id: 3, nombre: "Azúcar", porcentaje: 95.7 },
+            { id: 4, nombre: "Polvo de Hornear", porcentaje: 3.4 },
+            { id: 5, nombre: "Aceite", porcentaje: 32.6 },
+            { id: 6, nombre: "Sal", porcentaje: 2.3 },
+            { id: 7, nombre: "Huevos", porcentaje: 71.9 },
+            { id: 8, nombre: "Vainilla", porcentaje: 3.0 }
+        ];
+
+        const DENSIDAD_CUADRADA = 1147.0 / (2.5 * 28 * 39);
+        const volumenRefRedonda = Math.PI * Math.pow(14.5 / 2, 2) * 9.5;
+        const DENSIDAD_REDONDA = 659.1 / volumenRefRedonda;
+
+        function setShape(shape) {
+            currentShape = shape;
+            document.getElementById('btn-cuadrado').className = shape === 'cuadrado' ? "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow text-orange-600" : "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 uppercase";
+            document.getElementById('btn-redondo').className = shape === 'redondo' ? "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow text-orange-600 uppercase" : "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500";
+            document.getElementById('label-dimensiones').innerText = `Dimensiones ${shape.charAt(0).toUpperCase() + shape.slice(1)} (cm)`;
+            renderInputs();
+            calcular();
+        }
+
+        function renderInputs() {
+            const container = document.getElementById('inputs-container');
+            if (currentShape === 'cuadrado') {
+                container.innerHTML = `
+                    <div class="col-span-2"><label class="text-[9px] font-bold text-orange-700 uppercase mb-1 block">Altura</label><input type="number" id="altura" value="2.5" step="0.1" oninput="calcular()" class="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none text-base font-bold shadow-sm"></div>
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase mb-1 block">Profundidad</label><input type="number" id="profundidad" value="28" step="0.1" oninput="calcular()" class="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none text-base font-bold shadow-sm"></div>
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase mb-1 block">Largo</label><input type="number" id="largo" value="39" step="0.1" oninput="calcular()" class="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none text-base font-bold shadow-sm"></div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase mb-1 block">Diámetro</label><input type="number" id="diametro" value="14.5" step="0.1" oninput="calcular()" class="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none text-base font-bold shadow-sm"></div>
+                    <div><label class="text-[9px] font-bold text-orange-700 uppercase mb-1 block">Altura</label><input type="number" id="altura" value="9.5" step="0.1" oninput="calcular()" class="w-full bg-white p-3 rounded-xl border border-orange-200 outline-none text-base font-bold shadow-sm"></div>
+                `;
+            }
+        }
+
+        function calcular() {
+            let volumen = 0;
+            let densidadActual = (currentShape === 'cuadrado') ? DENSIDAD_CUADRADA : DENSIDAD_REDONDA;
+            const h = parseFloat(document.getElementById('altura').value) || 0;
+
+            if (currentShape === 'cuadrado') {
+                const p = parseFloat(document.getElementById('profundidad').value) || 0;
+                const l = parseFloat(document.getElementById('largo').value) || 0;
+                volumen = h * p * l;
+            } else {
+                const d = parseFloat(document.getElementById('diametro').value) || 0;
+                volumen = Math.PI * Math.pow(d / 2, 2) * h;
+            }
+
+            const pesoTotal = volumen * densidadActual;
+            const porcentajeTotal = recetaBase.reduce((acc, ing) => acc + ing.porcentaje, 0);
+            const pesoHarina = pesoTotal / (porcentajeTotal / 100);
+
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '';
+            let costoAcumulado = 0;
+
+            recetaBase.forEach(ing => {
+                const cantidadGramos = (pesoHarina * ing.porcentaje) / 100;
+                const costoIngrediente = cantidadGramos * (preciosPorGramo[ing.nombre] || 0);
+                costoAcumulado += costoIngrediente;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-orange-50/40 transition-all";
+                tr.innerHTML = `
+                    <td class="px-2 py-3 text-gray-300 text-[10px] font-mono">${ing.id}</td>
+                    <td class="px-2 py-3 font-bold text-gray-800 text-[14px]">${ing.nombre}</td>
+                    <td class="px-2 py-3 text-right font-mono font-bold text-orange-600 text-base">${Math.round(cantidadGramos)}g</td>
+                    <td class="px-2 py-3 text-right font-mono text-gray-500 text-sm">$${costoIngrediente.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('total-gramos').innerText = Math.round(pesoTotal) + ' g';
+            document.getElementById('total-costo').innerText = '$' + costoAcumulado.toFixed(2);
+        }
+
+        async function copyToClipboard() {
+            let text = `📋 TORTA DE NARANJA (${currentShape.toUpperCase()})\n`;
+            text += `---------------------------\n`;
+            const filas = document.getElementById('tabla-body').rows;
+            recetaBase.forEach((ing, index) => {
+                const celdas = filas[index].cells;
+                text += `${ing.nombre.padEnd(15)}: ${celdas[2].innerText} -> ${celdas[3].innerText}\n`;
+            });
+            text += `---------------------------\n`;
+            text += `PESO TOTAL: ${document.getElementById('total-gramos').innerText}\n`;
+            text += `COSTO TOTAL: ${document.getElementById('total-costo').innerText}\n`;
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                const toast = document.getElementById('toast');
+                toast.style.opacity = '1';
+                setTimeout(() => toast.style.opacity = '0', 2000);
+            } catch (err) {
+                console.error('Error al copiar', err);
+            }
+        }
+
+        window.onload = () => { renderInputs(); calcular(); };
+    </script>
+</body>
+</html>
